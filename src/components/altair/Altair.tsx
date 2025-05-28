@@ -167,6 +167,18 @@ function AltairComponent() {
     });
   }, [setConfig, setModel]);
 
+  useEffect(()=>{
+
+    const onsetupComplete = ()=>{
+      client.send([{text:"hello"}],true)
+    }
+
+    client.on("setupcomplete", onsetupComplete);
+    return () => {
+      client.off("setupcomplete", onsetupComplete);
+    };
+  }, [client]);
+
   useEffect(() => {
     const onToolCall = async (toolCall: LiveServerToolCall) => {
       if (!toolCall.functionCalls) {
