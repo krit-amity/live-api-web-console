@@ -62,6 +62,39 @@ const calculatorDeclaration: FunctionDeclaration = {
   },
 };
 
+export const callSummary = {
+  type: "function",
+  name: "call_summary",
+  description:
+    "Call this function for log (save in the database) summary of the call",
+  parameters: {
+    type: "object",
+    properties: {
+      call_id: {
+        type: "string",
+        description: "The call ID for this call (Generated randomly)",
+      },
+      client_id: {
+        type: "string",
+        description: "The client ID of the user",
+      },
+      is_selling_success: {
+        type: "boolean",
+        description: "Whether the selling was successful or not",
+      },
+      call_date: {
+        type: "string",
+        description: "The date of the call format YYYY-MM-DD",
+      },
+      call_time: {
+        type: "string",
+        description: "The time of the call format HH:MM",
+      },
+    },
+    required: ["client_id", "is_selling_success", "call_date", "call_time"],
+  },
+};
+
 async function calculator(
   operation: string,
   number1: number,
@@ -106,6 +139,24 @@ async function calculator(
   };
 }
 
+async function call_summary(
+  call_id: string,
+  client_id: string,
+  is_selling_success: boolean,
+  call_date: string,
+  call_time: string,
+  tool_call_id: string
+): Promise<any> {
+  return {
+    type: "conversation.item.create",
+    item: {
+      type: "function_call_output",
+      call_id: tool_call_id,
+      output: JSON.stringify({ success: true }),
+    },
+  };
+}
+
 function AltairComponent() {
   const [jsonString, setJSONString] = useState<string>("");
   const { client, setConfig, setModel } = useLiveAPIContext();
@@ -127,7 +178,7 @@ function AltairComponent() {
       tools: [
         // there is a free-tier quota for search
         { googleSearch: {} },
-        { functionDeclarations: [declaration, calculatorDeclaration] },
+        { functionDeclarations: [declaration, calculatorDeclaration, callSummary] },
       ],
     });
   }, [setConfig, setModel]);
@@ -146,6 +197,15 @@ function AltairComponent() {
           const result = await calculator(operation, num1, num2, fc.id);
           client.sendToolResponse({ functionResponses: [{
             response: { output: { success: true, ...JSON.parse(result.item.output) } },
+            id: fc.id,
+            name: fc.name,
+          }] });
+        } else if (fc.name === callSummary.name) {
+          // call_summary expects: call_id, client_id, is_selling_success, call_date, call_time
+          const { call_id, client_id, is_selling_success, call_date, call_time } = fc.args as any;
+          const result = await call_summary(call_id, client_id, is_selling_success, call_date, call_time, fc.id);
+          client.sendToolResponse({ functionResponses: [{
+            response: { output: { success: true } },
             id: fc.id,
             name: fc.name,
           }] });
