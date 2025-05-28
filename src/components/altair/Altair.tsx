@@ -23,22 +23,6 @@ import {
   Type,
 } from "@google/genai";
 
-const declaration: FunctionDeclaration = {
-  name: "render_altair",
-  description: "Displays an altair graph in json format.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      json_graph: {
-        type: Type.STRING,
-        description:
-          "JSON STRING representation of the graph to render. Must be a string, not a json object",
-      },
-    },
-    required: ["json_graph"],
-  },
-};
-
 const calculatorDeclaration: FunctionDeclaration = {
   name: "calculator",
   description: "Calculator for math operations",
@@ -178,7 +162,7 @@ function AltairComponent() {
       tools: [
         // there is a free-tier quota for search
         { googleSearch: {} },
-        { functionDeclarations: [declaration, calculatorDeclaration, callSummary] },
+        { functionDeclarations: [calculatorDeclaration, callSummary] },
       ],
     });
   }, [setConfig, setModel]);
@@ -189,10 +173,7 @@ function AltairComponent() {
         return;
       }
       for (const fc of toolCall.functionCalls as any[]) {
-        if (fc.name === declaration.name) {
-          const str = (fc.args as any).json_graph;
-          setJSONString(str);
-        } else if (fc.name === calculatorDeclaration.name) {
+        if (fc.name === calculatorDeclaration.name) {
           const { operation, num1, num2 } = fc.args as any;
           const result = await calculator(operation, num1, num2, fc.id);
           client.sendToolResponse({ functionResponses: [{
@@ -203,29 +184,13 @@ function AltairComponent() {
         } else if (fc.name === callSummary.name) {
           // call_summary expects: call_id, client_id, is_selling_success, call_date, call_time
           const { call_id, client_id, is_selling_success, call_date, call_time } = fc.args as any;
-          const result = await call_summary(call_id, client_id, is_selling_success, call_date, call_time, fc.id);
+          await call_summary(call_id, client_id, is_selling_success, call_date, call_time, fc.id);
           client.sendToolResponse({ functionResponses: [{
             response: { output: { success: true } },
             id: fc.id,
             name: fc.name,
           }] });
         }
-      }
-      // send data for the response of your tool call (for render_altair)
-      if ((toolCall.functionCalls as any[]).some((fc) => fc.name === declaration.name)) {
-        setTimeout(
-          () =>
-            client.sendToolResponse({
-              functionResponses: (toolCall.functionCalls as any[])
-                .filter((fc) => fc.name === declaration.name)
-                .map((fc) => ({
-                  response: { output: { success: true } },
-                  id: fc.id,
-                  name: fc.name,
-                })),
-            }),
-          200
-        );
       }
     };
     client.on("toolcall", onToolCall);
