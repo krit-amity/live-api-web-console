@@ -46,32 +46,31 @@ const calculatorDeclaration: FunctionDeclaration = {
   },
 };
 
-export const callSummary = {
-  type: "function",
+const callSummary: FunctionDeclaration = {
   name: "call_summary",
   description:
     "Call this function for log (save in the database) summary of the call",
   parameters: {
-    type: "object",
+    type: Type.OBJECT,
     properties: {
       call_id: {
-        type: "string",
+        type: Type.STRING,
         description: "The call ID for this call (Generated randomly)",
       },
       client_id: {
-        type: "string",
+        type: Type.STRING,
         description: "The client ID of the user",
       },
       is_selling_success: {
-        type: "boolean",
+        type: Type.BOOLEAN,
         description: "Whether the selling was successful or not",
       },
       call_date: {
-        type: "string",
+        type: Type.STRING,
         description: "The date of the call format YYYY-MM-DD",
       },
       call_time: {
-        type: "string",
+        type: Type.STRING,
         description: "The time of the call format HH:MM",
       },
     },
