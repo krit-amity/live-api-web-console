@@ -39,6 +39,73 @@ const declaration: FunctionDeclaration = {
   },
 };
 
+const calculatorDeclaration: FunctionDeclaration = {
+  name: "calculator",
+  description: "Calculator for math operations",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      operation: {
+        type: Type.STRING,
+        description: "The operation to perform (add, subtract, multiply, divide)",
+      },
+      num1: {
+        type: Type.NUMBER,
+        description: "The first number",
+      },
+      num2: {
+        type: Type.NUMBER,
+        description: "The second number",
+      },
+    },
+    required: ["operation", "num1", "num2"],
+  },
+};
+
+async function calculator(
+  operation: string,
+  number1: number,
+  number2: number,
+  call_id: string
+): Promise<any> {
+  let result;
+  switch (operation) {
+    case "add":
+      result = number1 + number2;
+      break;
+    case "subtract":
+      result = number1 - number2;
+      break;
+    case "multiply":
+      result = number1 * number2;
+      break;
+    case "divide":
+      if (number2 !== 0) {
+        result = number1 / number2;
+      } else {
+        throw new Error("Division by zero is not allowed.");
+      }
+      break;
+    default:
+      throw new Error(
+        "Invalid operation. Please use add, subtract, multiply, or divide."
+      );
+  }
+  return {
+    type: "conversation.item.create",
+    item: {
+      type: "function_call_output",
+      call_id: call_id,
+      output: JSON.stringify({
+        operation: operation,
+        number1: number1,
+        number2: number2,
+        result: result,
+      }),
+    },
+  };
+}
+
 function AltairComponent() {
   const [jsonString, setJSONString] = useState<string>("");
   const { client, setConfig, setModel } = useLiveAPIContext();
@@ -60,34 +127,42 @@ function AltairComponent() {
       tools: [
         // there is a free-tier quota for search
         { googleSearch: {} },
-        { functionDeclarations: [declaration] },
+        { functionDeclarations: [declaration, calculatorDeclaration] },
       ],
     });
   }, [setConfig, setModel]);
 
   useEffect(() => {
-    const onToolCall = (toolCall: LiveServerToolCall) => {
+    const onToolCall = async (toolCall: LiveServerToolCall) => {
       if (!toolCall.functionCalls) {
         return;
       }
-      const fc = toolCall.functionCalls.find(
-        (fc) => fc.name === declaration.name
-      );
-      if (fc) {
-        const str = (fc.args as any).json_graph;
-        setJSONString(str);
+      for (const fc of toolCall.functionCalls as any[]) {
+        if (fc.name === declaration.name) {
+          const str = (fc.args as any).json_graph;
+          setJSONString(str);
+        } else if (fc.name === calculatorDeclaration.name) {
+          const { operation, num1, num2 } = fc.args as any;
+          const result = await calculator(operation, num1, num2, fc.id);
+          client.sendToolResponse({ functionResponses: [{
+            response: { output: { success: true, ...JSON.parse(result.item.output) } },
+            id: fc.id,
+            name: fc.name,
+          }] });
+        }
       }
-      // send data for the response of your tool call
-      // in this case Im just saying it was successful
-      if (toolCall.functionCalls.length) {
+      // send data for the response of your tool call (for render_altair)
+      if ((toolCall.functionCalls as any[]).some((fc) => fc.name === declaration.name)) {
         setTimeout(
           () =>
             client.sendToolResponse({
-              functionResponses: toolCall.functionCalls?.map((fc) => ({
-                response: { output: { success: true } },
-                id: fc.id,
-                name: fc.name,
-              })),
+              functionResponses: (toolCall.functionCalls as any[])
+                .filter((fc) => fc.name === declaration.name)
+                .map((fc) => ({
+                  response: { output: { success: true } },
+                  id: fc.id,
+                  name: fc.name,
+                })),
             }),
           200
         );
