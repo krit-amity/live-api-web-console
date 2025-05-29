@@ -143,11 +143,11 @@ async function call_summary(
 
 function AltairComponent() {
   const [jsonString, setJSONString] = useState<string>("");
+  const [primerText, setPrimerText] = useState<string>(getPrimer());
   const { client, setConfig, setModel } = useLiveAPIContext();
 
   useEffect(() => {
-    // setModel("models/gemini-2.0-flash-exp");
-    setModel("models/gemini-2.5-flash-preview-native-audio-dialog")
+    setModel("models/gemini-2.5-flash-preview-native-audio-dialog");
     setConfig({
       responseModalities: [Modality.AUDIO],
       speechConfig: {
@@ -156,23 +156,43 @@ function AltairComponent() {
       systemInstruction: {
         parts: [
           {
-            text: getPrimer(),
+            text: primerText,
           },
         ],
       },
       tools: [
-        // there is a free-tier quota for search
         { googleSearch: {} },
         { functionDeclarations: [calculatorDeclaration, callSummary] },
       ],
     });
   }, [setConfig, setModel]);
 
-  useEffect(()=>{
+  // Handler for Primer submit
+  const handlePrimerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfig({
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
+      },
+      systemInstruction: {
+        parts: [
+          {
+            text: primerText,
+          },
+        ],
+      },
+      tools: [
+        { googleSearch: {} },
+        { functionDeclarations: [calculatorDeclaration, callSummary] },
+      ],
+    });
+  };
 
-    const onsetupComplete = ()=>{
-      client.send([{text:"hello"}],true)
-    }
+  useEffect(() => {
+    const onsetupComplete = () => {
+      client.send([{ text: "hello" }], true);
+    };
 
     client.on("setupcomplete", onsetupComplete);
     return () => {
@@ -189,11 +209,15 @@ function AltairComponent() {
         if (fc.name === calculatorDeclaration.name) {
           const { operation, num1, num2 } = fc.args as any;
           const result = await calculator(operation, num1, num2, fc.id);
-          client.sendToolResponse({ functionResponses: [{
-            response: { output: { success: true, ...JSON.parse(result.item.output) } },
-            id: fc.id,
-            name: fc.name,
-          }] });
+          client.sendToolResponse({
+            functionResponses: [
+              {
+                response: { output: { success: true, ...JSON.parse(result.item.output) } },
+                id: fc.id,
+                name: fc.name,
+              },
+            ],
+          });
         } else if (fc.name === callSummary.name) {
           // call_summary expects: call_id, client_id, is_selling_success, call_date, call_time
           const { call_id, client_id, is_selling_success, call_date, call_time } = fc.args as any;
@@ -220,7 +244,25 @@ function AltairComponent() {
       vegaEmbed(embedRef.current, JSON.parse(jsonString));
     }
   }, [embedRef, jsonString]);
-  return <div className="vega-embed" ref={embedRef} />;
+  return (
+    <div className="w-full h-full flex flex-col">
+      <form onSubmit={handlePrimerSubmit} className="mb-4 h-full flex flex-col flex-1">
+        <label htmlFor="primer-textarea" className="block font-bold mb-2">
+          Primer (System Prompt):
+        </label>
+        <textarea
+          id="primer-textarea"
+          className="w-full flex-1 min-h-0 p-2 border rounded mb-2 font-mono resize-none"
+          value={primerText}
+          onChange={(e) => setPrimerText(e.target.value)}
+        />
+        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded self-end">
+          Update Primer
+        </button>
+      </form>
+      <div className="vega-embed flex-shrink-0" ref={embedRef} />
+    </div>
+  );
 }
 
 export const Altair = memo(AltairComponent);
