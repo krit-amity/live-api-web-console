@@ -24,6 +24,7 @@ import {
 } from "@google/genai";
 import { getPrimer, primer } from "./primer";
 import { sessionConfigData as initialSessionConfigData, clientData as initialClientData } from "./sessionConfigData";
+import React from "react";
 
 const calculatorDeclaration: FunctionDeclaration = {
   name: "calculator",
@@ -262,6 +263,12 @@ function AltairComponent() {
       vegaEmbed(embedRef.current, JSON.parse(jsonString));
     }
   }, [embedRef, jsonString]);
+
+  // Helper to highlight only the replaced {VARS} in blue
+  function highlightPrimerVars(text: string) {
+    return text.replace(/({AGENT_NAME}|{AGENT_ID}|{CLIENT_ID}|{DATE}|{SERVICE})/g, '<span style="color:#2563eb;font-weight:bold">$1</span>');
+  }
+
   return (
     <div className="w-full h-full flex flex-row gap-4">
       <div className="flex flex-col flex-1 h-full">
@@ -278,6 +285,9 @@ function AltairComponent() {
           value={primerText}
           onChange={e => setPrimerText(e.target.value)}
         />
+        <div className="w-full bg-gray-50 border rounded p-2 font-mono text-sm overflow-auto" style={{minHeight: 80, maxHeight: 200}}>
+          <div dangerouslySetInnerHTML={{ __html: highlightPrimerVars(primerText) }} />
+        </div>
       </div>
       <div className="flex flex-col flex-1 h-full gap-4">
         <div className="flex-1 flex flex-col">
