@@ -1,12 +1,14 @@
 import { sessionConfigData, clientData } from "./sessionConfigData";
 
-export function getPrimer(config = sessionConfigData) {
-  return primer
+export function getPrimer(template?: string, config = sessionConfigData, clientDataOverride?: string) {
+  const base = template || primer;
+  const clientDataString = clientDataOverride !== undefined ? clientDataOverride : clientData;
+  return base
     .replace(/{AGENT_NAME}/g, config.agent_name)
     .replace(/{AGENT_ID}/g, config.agent_id)
     .replace(/{CLIENT_ID}/g, config.client_id)
     .replace(/{DATE}/g, config.call_date)
-    .replace(/{SERVICE}/g, config.service_type) + "\n\n\nClient Data:\n" + clientData;
+    .replace(/{SERVICE}/g, config.service_type) + "\n\n\nClient Data:\n" + clientDataString;
 }
 
 export const primer = `

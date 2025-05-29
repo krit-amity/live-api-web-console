@@ -22,7 +22,8 @@ import {
   Modality,
   Type,
 } from "@google/genai";
-import { getPrimer } from "./primer";
+import { getPrimer, primer } from "./primer";
+import { sessionConfigData as initialSessionConfigData, clientData as initialClientData } from "./sessionConfigData";
 
 const calculatorDeclaration: FunctionDeclaration = {
   name: "calculator",
@@ -143,11 +144,20 @@ async function call_summary(
 
 function AltairComponent() {
   const [jsonString, setJSONString] = useState<string>("");
-  const [primerText, setPrimerText] = useState<string>(getPrimer());
+  const [primerText, setPrimerText] = useState<string>(primer);
+  const [sessionConfigText, setSessionConfigText] = useState<string>(JSON.stringify(initialSessionConfigData, null, 2));
+  const [clientDataText, setClientDataText] = useState<string>(initialClientData);
   const { client, setConfig, setModel } = useLiveAPIContext();
+  const [updateFeedback, setUpdateFeedback] = useState<string>("");
 
   useEffect(() => {
     setModel("models/gemini-2.5-flash-preview-native-audio-dialog");
+    let configObj;
+    try {
+      configObj = JSON.parse(sessionConfigText);
+    } catch {
+      configObj = initialSessionConfigData;
+    }
     setConfig({
       responseModalities: [Modality.AUDIO],
       speechConfig: {
@@ -156,7 +166,7 @@ function AltairComponent() {
       systemInstruction: {
         parts: [
           {
-            text: primerText,
+            text: getPrimer(primerText, configObj, clientDataText),
           },
         ],
       },
@@ -165,11 +175,17 @@ function AltairComponent() {
         { functionDeclarations: [calculatorDeclaration, callSummary] },
       ],
     });
-  }, [setConfig, setModel]);
+  }, [setConfig, setModel, primerText, sessionConfigText, clientDataText]);
 
   // Handler for Primer submit
-  const handlePrimerSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePrimerSubmit = () => {
+    let configObj;
+    try {
+      configObj = JSON.parse(sessionConfigText);
+    } catch {
+      alert("Invalid JSON in sessionConfigData");
+      return;
+    }
     setConfig({
       responseModalities: [Modality.AUDIO],
       speechConfig: {
@@ -178,7 +194,7 @@ function AltairComponent() {
       systemInstruction: {
         parts: [
           {
-            text: primerText,
+            text: getPrimer(primerText, configObj, clientDataText),
           },
         ],
       },
@@ -187,6 +203,8 @@ function AltairComponent() {
         { functionDeclarations: [calculatorDeclaration, callSummary] },
       ],
     });
+    setUpdateFeedback("Primer updated!");
+    setTimeout(() => setUpdateFeedback(""), 2000);
   };
 
   useEffect(() => {
@@ -245,22 +263,42 @@ function AltairComponent() {
     }
   }, [embedRef, jsonString]);
   return (
-    <div className="w-full h-full flex flex-col">
-      <form onSubmit={handlePrimerSubmit} className="mb-4 h-full flex flex-col flex-1">
-        <label htmlFor="primer-textarea" className="block font-bold mb-2">
-          Primer (System Prompt):
-        </label>
+    <div className="w-full h-full flex flex-row gap-4">
+      <div className="flex flex-col flex-1 h-full">
+        <div className="flex flex-row items-center justify-between mb-2">
+          <label htmlFor="primer-textarea" className="block font-bold">Primer (System Prompt):</label>
+          <div className="flex flex-col items-end">
+            <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded ml-2" onClick={handlePrimerSubmit}>Update Primer</button>
+            {updateFeedback && <span className="text-green-600 text-xs mt-1">{updateFeedback}</span>}
+          </div>
+        </div>
         <textarea
           id="primer-textarea"
           className="w-full flex-1 min-h-0 p-2 border rounded mb-2 font-mono resize-none"
           value={primerText}
-          onChange={(e) => setPrimerText(e.target.value)}
+          onChange={e => setPrimerText(e.target.value)}
         />
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded self-end">
-          Update Primer
-        </button>
-      </form>
-      <div className="vega-embed flex-shrink-0" ref={embedRef} />
+      </div>
+      <div className="flex flex-col flex-1 h-full gap-4">
+        <div className="flex-1 flex flex-col">
+          <label htmlFor="session-config-textarea" className="block font-bold mb-2">sessionConfigData (JSON):</label>
+          <textarea
+            id="session-config-textarea"
+            className="w-full flex-1 min-h-0 p-2 border rounded mb-2 font-mono resize-none"
+            value={sessionConfigText}
+            onChange={e => setSessionConfigText(e.target.value)}
+          />
+        </div>
+        <div className="flex-1 flex flex-col">
+          <label htmlFor="client-data-textarea" className="block font-bold mb-2">clientData (raw):</label>
+          <textarea
+            id="client-data-textarea"
+            className="w-full flex-1 min-h-0 p-2 border rounded mb-2 font-mono resize-none"
+            value={clientDataText}
+            onChange={e => setClientDataText(e.target.value)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
