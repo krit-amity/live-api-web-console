@@ -222,7 +222,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
           if (b64) {
             const data = base64ToArrayBuffer(b64);
             this.emit("audio", data);
-            this.log(`server.audio`, `buffer (${data.byteLength})`);
+            // this.log(`server.audio`, `buffer (${data.byteLength})`);
           }
         });
         if (!otherParts.length) {
@@ -266,7 +266,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
         : hasVideo
         ? "video"
         : "unknown";
-    this.log(`client.realtimeInput`, message);
+    // this.log(`client.realtimeInput`, message);
   }
 
   /**

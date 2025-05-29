@@ -172,7 +172,7 @@ function AltairComponent() {
         ],
       },
       tools: [
-        { googleSearch: {} },
+        // { googleSearch: {} },
         { functionDeclarations: [calculatorDeclaration, callSummary] },
       ],
     });
